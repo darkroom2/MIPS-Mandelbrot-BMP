@@ -37,6 +37,7 @@ height: .space 4
 pixelCount: .space 4
 pixelArray: .space 4
 outputFileBegin: .space 4
+padding: .space 4
 inputFile: .asciiz "in.bmp"
 outputFile: .asciiz "out.bmp"
 .text
@@ -72,7 +73,7 @@ main:
 	syscall
 	
 	li $v0, 16	# zamykamy plik, mamy juz wszystkie informacje o nim
-	lw $a0, $s6	# zamykamy go, aby pozniej przy otwarciu, wskaznik pliku byl na jego poczatku
+	move $a0, $s6	# zamykamy go, aby pozniej przy otwarciu, wskaznik pliku byl na jego poczatku
 	syscall
 	
 	#porzadkujemy przydatne info (patrz struct na gorze)
@@ -88,69 +89,83 @@ main:
 	mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
 	sw $t1, pixelCount
 	
-	la $t0, header + 54 # adres poczatka pixeli
-	sw $t0, pixelArray
-	
 	#majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
 	lw $a0, fileSize # tyle ile in.bmp
 	syscall
 	sw $v0, outputFileBegin # zapisujemy adres poczatku zaalokowanej pamieci, aby pozniej przepisac ja do out.bmp
 	
+	#otwieramy plik aby przepisac jego cala zawartosc do zaalokowanej pamieci
+	li $v0, 13
+	la $a0, inputFile
+	syscall
+	move $s6, $v0	# deskryptor w s6
 	
+	li $v0, 14	# czytamy plik
+	move $a0, $s6
+	lw $a1, outputFileBegin # pod tym adresem
+	lw $a2, fileSize # czytamy i zapisujemy caly plik
+	syscall
+	
+	li $v0, 16	# ostatecznie zamykamy plik in.bmp
+	move $a0, $s6
+	syscall
+	
+	#obliczamy poczatek tablicy pixeli
+	lw $t0, outputFileBegin
+	addu $t0, $t0, 54
+	sw $t0, pixelArray
+	
+	#padding, mamy 4bajty na pixel, wiersz musi sie konczyc na wyrownanym do 4 adresie
+	lw $t0, width
+
+	andi $t1, $t0, 0x3 # sprytne source: http://home.elka.pw.edu.pl/~sniespod/index.php?l=arko
+	sw $t1, padding
+
+	mulu $t0, $t0, 3 # liczba bajtow w wierszu
+	addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
+
+	
+	# !!!! WA¯NE !!!!  mamy B G R, w takiej kolejnosci, a NIE   r g b.
+	#kolor
+	li $t0, 55
+	#wczytajmy pierwszy pixel
+	lw $a0, pixelArray
+	sb $t0, ($a0)
+	sb $t0, 1($a0)
+	sb $t0, 2($a0)
+	addiu $a0, $a0, 1
+		sb $t0, ($a0)
+	sb $t0, 1($a0)
+	sb $t0, 2($a0)
+	addiu $a0, $a0, 1
+		sb $t0, ($a0)
+	sb $t0, 1($a0)
+	sb $t0, 2($a0)
+	addiu $a0, $a0, 1
+		sb $t0, ($a0)
+	sb $t0, 1($a0)
+	sb $t0, 2($a0)
+	addiu $a0, $a0, 1
+	
+	#zapisujemy zaalokowany wczesniej plik
+	li $v0, 13	# otwieramy plik
+	la $a0, outputFile # output.bmp
+	li $a1, 1	# do zapisu
+	syscall
+	move $s6, $v0	# deskryptor w s6
+	
+	#zapisz do plik
+	li $v0, 15
+ 	move $a0, $s6      # file descriptor 
+ 	la $a1, outputFileBegin
+ 	lw $a2, fileSize
+ 	syscall
+ 	
+ 	#zamkniecie tego pliku
+	li $v0, 16	# ostatecznie zamykamy plik out.bmp
+	move $a0, $s6
+	syscall
 end:
 	li $v0, 10
 	syscall
-	
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
