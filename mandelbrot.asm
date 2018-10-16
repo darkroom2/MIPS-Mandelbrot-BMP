@@ -62,6 +62,8 @@ str:	.asciiz %str
 main:
 	li $v0, 13	# otwarcie pliku
 	la $a0, inputFile # o podanej sciezce
+	li $a1, 0
+	li $a2, 0
 	syscall
 	move $s6, $v0	# deskryptor w s6
 	
@@ -98,6 +100,8 @@ main:
 	#otwieramy plik aby przepisac jego cala zawartosc do zaalokowanej pamieci
 	li $v0, 13
 	la $a0, inputFile
+	li $a1, 0
+	li $a2, 0
 	syscall
 	move $s6, $v0	# deskryptor w s6
 	
@@ -126,7 +130,7 @@ main:
 	addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
 
 	
-	# !!!! WA¯NE !!!!  mamy B G R, w takiej kolejnosci, a NIE   r g b.
+	# !!!! WAZNE !!!!  mamy B G R, w takiej kolejnosci, a NIE   r g b.
 	#kolor
 	li $t0, 55
 	#wczytajmy pierwszy pixel
@@ -151,14 +155,15 @@ main:
 	#zapisujemy zaalokowany wczesniej plik
 	li $v0, 13	# otwieramy plik
 	la $a0, outputFile # output.bmp
-	li $a1, 1	# do zapisu
+	li $a1, 1
+	li $a2, 0
 	syscall
 	move $s6, $v0	# deskryptor w s6
 	
 	#zapisz do plik
 	li $v0, 15
  	move $a0, $s6      # file descriptor 
- 	la $a1, outputFileBegin
+ 	lw $a1, outputFileBegin
  	lw $a2, fileSize
  	syscall
  	
