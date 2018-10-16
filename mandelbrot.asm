@@ -38,6 +38,7 @@ pixelCount: .space 4
 pixelArray: .space 4
 outputFileBegin: .space 4
 padding: .space 4
+bytesInLine: .space 4
 inputFile: .asciiz "in.bmp"
 outputFile: .asciiz "out.bmp"
 .text
@@ -127,31 +128,14 @@ main:
 	sw $t1, padding
 
 	mulu $t0, $t0, 3 # liczba bajtow w wierszu
-	addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
+	addu $t1, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
+	sw $t1, bytesInLine
+	
+############################################
+# tutaj algo mandelbrota
+# https://pastebin.com/kiU52tgY
+############################################	
 
-	
-	# !!!! WAZNE !!!!  mamy B G R, w takiej kolejnosci, a NIE   r g b.
-	#kolor
-	li $t0, 55
-	#wczytajmy pierwszy pixel
-	lw $a0, pixelArray
-	sb $t0, ($a0)
-	sb $t0, 1($a0)
-	sb $t0, 2($a0)
-	addiu $a0, $a0, 1
-		sb $t0, ($a0)
-	sb $t0, 1($a0)
-	sb $t0, 2($a0)
-	addiu $a0, $a0, 1
-		sb $t0, ($a0)
-	sb $t0, 1($a0)
-	sb $t0, 2($a0)
-	addiu $a0, $a0, 1
-		sb $t0, ($a0)
-	sb $t0, 1($a0)
-	sb $t0, 2($a0)
-	addiu $a0, $a0, 1
-	
 	#zapisujemy zaalokowany wczesniej plik
 	li $v0, 13	# otwieramy plik
 	la $a0, outputFile # output.bmp
