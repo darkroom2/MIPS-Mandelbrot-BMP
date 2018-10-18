@@ -25,22 +25,32 @@
 # 52 DWORD biClrImportant;	4bajty,
 # }
 
-# s6 wolne na dekryptor
-
+.eqv iXmax $t0
+.eqv iX $t1
+.eqv iYmax $t2
+.eqv iY $t3
+.eqv pixelWidth $t4
+.eqv pixelHeight $t5
+.eqv iterationMax $t6
+.eqv ER2 $t7
 .data
+
 .align 2
 .space 2
 header: .space 54
-fileSize: .space 4
-width: .space 4
-height: .space 4
-pixelCount: .space 4
-pixelArray: .space 4
-outputFileBegin: .space 4
-padding: .space 4
-bytesInLine: .space 4
+fileSize: .word 1
+width: .word 1
+height: .word 1
+pixelCount: .word 1
+pixelArray: .word 1
+outputFileBegin: .word 1
+padding: .word 1
+bytesInLine: .word 1
+CxMin: .word 1
+CyMin: .word 1
 inputFile: .asciiz "in.bmp"
 outputFile: .asciiz "out.bmp"
+
 .text
 
 .macro printInt(%x)
@@ -91,7 +101,8 @@ main:
 	
 	mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
 	sw $t1, pixelCount
-	
+	# test
+	# b test
 	#majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
 	lw $a0, fileSize # tyle ile in.bmp
@@ -137,22 +148,123 @@ main:
 ############################################	
 # Mamy do dyspozycji WSZYSTKIE rejestry:
 # 
-	lw $t0, width
-	lw $t1, height
-	lw $s0, pixelArray
-	li $s1, 111
+# test:
+	lw iXmax, height
+	li iX, 0
+	sll iX, iX, 16
+	lw iYmax, width
+	li iY, 0
+	sll iY, iY, 16
+
+	li $t4, 5 #000000101
+	sll $t4, $t4, 15 # 000010.100000  # 2.5
+	neg $t4, $t4
+	sw $t4, CxMin # CxMin = -2.5
+	
+	li $t4, 2 #000000010
+	sll $t4, $t4, 16 # 000010.000000  # 2.0
+	neg $t4, $t4
+	sw $t4, CyMin # CyMin = -2.0
+
+	# pixelWidth = (1.5 - (-2.5)) / iXmax; 4 / iXmax
+	li $t4, 4	# 00000100
+	sll $t4, $t4, 16 # 000100.0000000
+	divu pixelHeight, $t4, iYmax # pHeight = 4 / iYmax
+	divu pixelWidth, $t4, iXmax # pWidth = 4 / iXmax
+	#pixelHeight - $t5
+	#pixelWidth - $t4
+	li iterationMax, 200 # $t6
+	
+	li $t7, 4	# 00000100
+	sll $t7, $t7, 16 # 000100.0000000 (4.0)
+	
+	# ER2 - $t7
+	
+
+	
+	lw $t8, pixelArray
+	li $s4, 111
+loop1:
+	# Cy = CyMin + iY * PixelHeight;
+	mulu $s1, iY, pixelHeight
+	mfhi $s2
+	srl $s1, $s1, 16
+	sll $s2, $s2, 16
+	or $s1, $s1, $s2 
+	lw $s2, CyMin
+	addu $s1, $s1, $s2
+	# Cy - $s1
+	
+	abs $s0, $s0
+	srl $s1, pixelHeight, 1
+	blt $s0, $s1, loop2
+	li $s0, 0
+
+
 loop2:
 	# do stuff
-	sb $s1, ($s0)
-	sb $s1, 1($s0)
-	sb $s1, 2($s0)
-	addiu $s0, $s0, 3
-	addiu $t1, $t1, -1
-	bnez $t1, loop2
-nextLoop1:
-	lw $t1, height
-	addiu $t0, $t0, -1
-	bnez $t0, loop2
+	# Cx = CxMin + iX * PixelWidth;
+	mulu $s0, iX, pixelWidth
+	mfhi $s1
+	srl $s0, $s0, 16
+	sll $s1, $s1, 16
+	or $s0, $s0, $s1
+	lw $s1, CxMin
+	addu $s0, $s0, $s1
+	# Cx - $s0
+	li $v0, 0	# Zx
+	li $v1, 0	# Zy
+	# mulu $a0, $v0, $v0 # a0 Zx2
+	# mulu $a1, $v1, $v1 # a1 Zy2
+	
+	li $t9, 0 # iteration = 0
+
+	loop3:
+		addu $a3, $a0, $a1 #Zx2 + Zy2
+		beq $t9, iterationMax, endLoop3
+		bge $a3, ER2, lessIters
+		# inside loop
+		
+		# Zy = 2 * Zx*Zy + Cy;
+		mulu $v1, $v0, $v1
+		mfhi $s3
+		srl $v1, $v1, 16
+		sll $s3, $s3, 16
+		or $v1, $v1, $s3 # Zy = Zx * Zy
+		sra $v1, $v1, 1 # Zy = 2 * Zx * Zy
+		addu $v1, $v1, $s0 # Zy = 2 * Zx*Zy + Cy;
+		
+		# Zx = Zx2 - Zy2 + Cx;
+		addu $v0, $s0, $a0 # Zx = Cx + Zx2
+		subu $v0, $v0, $a1 # Zx = Zx - Zy2
+		
+		mulu $a0, $v0, $v0 # Zx2 = Zx * Zx
+		mfhi $s3
+		srl $a0, $a0, 16
+		sll $s3, $s3, 16
+		or $a0, $a0, $s3 # Zx2 = Zx*Zx
+		
+		mulu $a1, $v1, $v1 # Zy2 = Zy * Zy
+		mfhi $s3
+		srl $a1, $a1, 16
+		sll $s3, $s3, 16
+		or $a1, $a1, $s3 # Zy2 = Zy*Zy
+		
+		addiu $t9, $t9, 1
+		b loop3
+	endLoop3:
+		sb $s4, ($t8)
+		sb $s4, 1($t8)
+		sb $s4, 2($t8)
+	lessIters:
+		addiu $t8, $t8, 3
+		
+	addiu iX, iX, 1
+	blt iX, iXmax, loop2
+		
+	li iX, 0
+	addiu iY, iY, 1
+	blt iY, iYmax, loop1
 
 # 
 ############################### Koniec
