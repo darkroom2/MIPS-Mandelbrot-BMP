@@ -128,13 +128,35 @@ main:
 	sw $t1, padding
 
 	mulu $t0, $t0, 3 # liczba bajtow w wierszu
-	addu $t1, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
-	sw $t1, bytesInLine
+	addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
+	sw $t0, bytesInLine
 	
 ############################################
 # tutaj algo mandelbrota
 # https://pastebin.com/kiU52tgY
 ############################################	
+# Mamy do dyspozycji WSZYSTKIE rejestry:
+# 
+	lw $t0, width
+	lw $t1, height
+	lw $s0, pixelArray
+	li $s1, 111
+loop2:
+	# do stuff
+	sb $s1, ($s0)
+	sb $s1, 1($s0)
+	sb $s1, 2($s0)
+	addiu $s0, $s0, 3
+	addiu $t1, $t1, -1
+	bnez $t1, loop2
+nextLoop1:
+	lw $t1, height
+	addiu $t0, $t0, -1
+	bnez $t0, loop2
+
+# 
+############################### Koniec
+# 
 
 	#zapisujemy zaalokowany wczesniej plik
 	li $v0, 13	# otwieramy plik
