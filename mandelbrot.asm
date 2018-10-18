@@ -28,6 +28,12 @@
 .eqv iX $t1
 .eqv iYmax $t2
 .eqv iY $t3
+.eqv Cy $t4
+.eqv Cx $t5
+.eqv Zx $t6
+.eqv Zy $t7
+.eqv Zx2 $t8
+.eqv Zy2 $t9
 .data
 .align 2
 .space 2
@@ -97,9 +103,6 @@ main:
 	mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
 	sw $t1, pixelCount
 	
-	# debug
-	#b debug	
-	
 	#majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
 	lw $a0, fileSize # tyle ile in.bmp
@@ -140,18 +143,14 @@ main:
 	sw $t0, bytesInLine
 	
 ############################################
-# tutaj algo mandelbrota
-# https://pastebin.com/kiU52tgY
-############################################	
+# G³ówny algorytm:
 # Mamy do dyspozycji WSZYSTKIE rejestry:
 # 
-	debug:
-	
 	lw iXmax, width	# t0 iXmax
-	li iX, 50	# t1 iX
+	li iX, 0	# t1 iX
 	
 	lw iYmax, height # t2 iYmax
-	li iY, 50	# t3 iY
+	li iY, 0	# t3 iY
 	
 	# CxMin
 	li $t4, 5	# 000000101
@@ -170,11 +169,11 @@ main:
 	sll $t4, $t4, 16
 	divu $t5, $t4, $t2 # pixelHeight = 4.0 / iYmax
 	divu $t4, $t4, $t0 # pixelWidth = 4.0 / iXmax
-	sw $t4, pixelWidth
+	sw $t4, pixelWidth # 0,0078125
 	sw $t5, pixelHeight
 	
 	li $s6, 0	# actual ireration
-	li $s7, 200 # iterationMax
+	li $s7, 50 # iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 111
@@ -190,16 +189,15 @@ loop1:
 	abs $a1, $t6	# abs($t6)
 	bge $a1, $a0, loop2 
 	li $t4, 0# Cy = 0.0; 
-	printInt($t4)
-	b end
+
 loop2:
-	b end
+
 	# Cx = CxMin + iX * PixelWidth;
 	lw $a0, pixelWidth
 	mul $t5, $a0, iX # iX * pW
 	lw $a0, CxMin
 	add $t5, $t5, $a0 # t5 Cx
-	
+
 	# Zx = 0.0;
 	li $t6, 0
 	# Zy = 0.0;
@@ -208,31 +206,64 @@ loop2:
 	mul $t8, $t6, $t6
 	# Zy2 = Zy * Zy;
 	mul $t9, $t7, $t7
-	
-	# s7 = 200
-	# s6 = 0
-	
+
 	# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
 	loop3:
+		addu $a2, Zx2, Zy2 # ER2
+		printInt($a2)
+
+		bge $a2, 262144, next2 #262144 to 4.0 w formacie 16b.16b
 		
-	# Zy = 2 * Zx * Zy + Cy;
-	# Zx = Zx2 - Zy2 + Cx;
-	# Zx2 = Zx * Zx;
-	# Zy2 = Zy * Zy;
-	#}
-	# if (Iteration == IterationMax) {
-	#	// color srodka
-	# }
-	# else {
-	# 	// color na zewnatrz
-	# }
+		# Zy = 2 * Zx * Zy + Cy;
+		mul Zy, Zx, Zy
+		sll Zy, Zy, 17 # 16+1, 16 na konwersje, 1 na 2*x
+		add Zy, Zy, Cy
+
+		# Zx = Zx2 - Zy2 + Cx;
+		add Zx, Zx2, Zy2
+		sll Zx, Zx, 16
+		add Zx, Zx, Cx
+
+
+		# Zx2 = Zx * Zx;
+		mul Zx2, Zx, Zx
+		mfhi $a1
+		sra Zx2, Zx2, 16
+		sll $a1, $a1, 16
+		or Zx2, Zx2, $a1
+		
+
+		
+		# Zy2 = Zy * Zy;
+		mul Zy2, Zy, Zy
+		mfhi $a1
+		sra Zy2, Zy2, 16
+		sll $a1, $a1, 16
+		or Zy2, Zy2, $a1
+		
 		addiu $s6, $s6, 1
-	
+		blt $s6, $s7, loop3
+		
+		# if (Iteration == IterationMax) {
+		bne $s6, $s7, next2
+		#	// color srodka
+		sb $s1, ($s0)
+		sb $s1, 1($s0)
+		sb $s1, 2($s0)
+		addiu $s0, $s0, 3
+		# }
+		# else {
+
+		# 	// color na zewnatrz
+		# }
+		
+next2:
+	li $s6, 0
 	addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
 	blt iX, iXmax, loop2
 	# dodanie paddingu
 	addu $s0, $s0, $a3
-next:
+next1:
 	li iX, 0
 	addiu iY, iY, 1
 	blt iY, iYmax, loop1
