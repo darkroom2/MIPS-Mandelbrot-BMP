@@ -1,4 +1,4 @@
-# https://docs.microsoft.com/en-us/windows/desktop/gdi/bitmap-storage BMP
+﻿# https://docs.microsoft.com/en-us/windows/desktop/gdi/bitmap-storage BMP
 # https://docs.microsoft.com/en-us/windows/desktop/winprog/windows-data-types wielkosci WORD itp.
 
 # DWORD 32bit, WORD 16bit, LONG 32bit
@@ -41,11 +41,11 @@ header: .space 54
 fileSize: .word 1
 width: .word 1
 height: .word 1
-pixelCount: .word 1
+# pixelCount: .word 1
 pixelArray: .word 1
 outputFileBegin: .word 1
 padding: .word 1
-bytesInLine: .word 1
+# bytesInLine: .word 1
 CxMin: .word 1
 CyMin: .word 1
 pixelWidth: .word 1
@@ -100,8 +100,8 @@ main:
 	lw $t2, header+22 # wysokosc
 	sw $t2, height
 	
-	mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
-	sw $t1, pixelCount
+	# mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
+	# sw $t1, pixelCount
 	
 	#majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
@@ -138,12 +138,12 @@ main:
 	andi $t1, $t0, 0x3 # sprytne source: http://home.elka.pw.edu.pl/~sniespod/index.php?l=arko
 	sw $t1, padding
 
-	mulu $t0, $t0, 3 # liczba bajtow w wierszu
-	addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
-	sw $t0, bytesInLine
+	# mulu $t0, $t0, 3 # liczba bajtow w wierszu
+	# addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
+	# sw $t0, bytesInLine
 	
 ############################################
-# G??wny algorytm:
+# Glowny algorytm:
 # Mamy do dyspozycji WSZYSTKIE rejestry:
 # 
 	lw iXmax, width	# t0 iXmax
@@ -180,12 +180,13 @@ main:
 loop1:
 	# Cy = CyMin + iY * PixelHeight;
 	lw $a0, pixelHeight
-	mul Cy, $a0, iY # iY * pH
+	mulu Cy, $a0, iY # iY * pH
 	lw $a0, CyMin
 	add Cy, Cy, $a0 # t4 Cy
 
 	# if (fabs(Cy) < PixelHeight / 2) Cy = 0.0;
-	srl $a0, Cy, 1 # pH/2
+	lw $a0, pixelHeight
+	srl $a0, $a0, 1 # pH/2
 	abs $a1, Cy	# abs(Cy)
 	nop
 	bge $a1, $a0, loop2
@@ -196,7 +197,7 @@ loop2:
 
 	# Cx = CxMin + iX * PixelWidth;
 	lw $a0, pixelWidth
-	mul Cx, $a0, iX # iX * pW
+	mulu Cx, $a0, iX # iX * pW
 	lw $a0, CxMin
 	add Cx, Cx, $a0 # t5 Cx
 
@@ -205,34 +206,39 @@ loop2:
 	# Zy = 0.0;
 	li Zy, 0
 	# Zx2 = Zx * Zx;
-	li Zx2, 0
-########mul $t8, Zx, Zx
+	#li Zx2, 0
+#########
+	mulu Zx2, Zx, Zx
 	# Zy2 = Zy * Zy;
-	li Zy2, 0
-########mul $t9, $t7, $t7
+	#li Zy2, 0
+#########
+	mulu Zy2, Zy, Zy
 
 	# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
 	loop3:
-		# b next3
+		#b next3
 		addu $a2, Zx2, Zy2 # ER2
 		nop
 		bge $a2, 262144, next3 #262144 to 4.0 w formacie 16b.16b
 		nop
+		
+		# lw Zy, CyMin
+		# lw Zx, CxMin
+		
 		# Zy = 2 * Zx * Zy + Cy;
 		mul Zy, Zx, Zy
 		mfhi $a1
 		sra Zy, Zy, 16
 		sll $a1, $a1, 16
 		or Zy, Zy, $a1
-		sll Zy, Zy, 1
-		#sll Zy, Zy, 17 # 16+1, 16 na konwersje, 1 na 2*x
+		sll Zy, Zy, 1	# *2
 		add Zy, Zy, Cy
 
-		# Zx = Zx2 - Zy2 + Cx;
-		addu Zx, Zx2, Zy2
-		# sll Zx, Zx, 16
-		add Zx, Zx, Cx
+# dotad jest git
 
+		# Zx = Zx2 - Zy2 + Cx;
+		sub Zx, Zx2, Zy2
+		add Zx, Zx, Cx
 
 		# Zx2 = Zx * Zx;
 		mul Zx2, Zx, Zx
@@ -241,8 +247,6 @@ loop2:
 		sll $a1, $a1, 16
 		or Zx2, Zx2, $a1
 		
-
-		
 		# Zy2 = Zy * Zy;
 		mul Zy2, Zy, Zy
 		mfhi $a1
@@ -250,28 +254,7 @@ loop2:
 		sll $a1, $a1, 16
 		or Zy2, Zy2, $a1
 		
-		nop
-		blt $s6, 1, skipPrint
-		nop
-		printInt(iX, " iX\n")
-		printInt(iXmax, " iXmax\n")
-		printInt(iY, " iY\n")
-		printInt(iYmax, " iYmax\n")
-		printInt(Cx, " Cx\n")
-		printInt(Cy, " Cy\n")
-		printInt(Zx, " Zx\n")
-		printInt(Zx2, " Zx2\n")
-		printInt(Zy, " Zy\n")
-		printInt(Zy2, " Zy2\n")
-		printInt($s6, " iteration\n")
-		nop
-		b end
-		nop
-	skipPrint:
-		
-		
-		
-		addiu $s6, $s6, 1
+		addiu $s6, $s6, 1	# increment iterator
 		nop
 		blt $s6, $s7, loop3
 		nop
