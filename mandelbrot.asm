@@ -54,11 +54,11 @@ inputFile: .asciiz "in.bmp"
 outputFile: .asciiz "out.bmp"
 .text
 
-.macro printInt(%x)
+.macro printInt(%x, %str)
 	li $v0, 1
 	addu $a0, %x, $zero
 	syscall
-	printStr("\n")
+	printStr(%str)
 .end_macro
 .macro printStr (%str)
 	.data
@@ -143,7 +143,7 @@ main:
 	sw $t0, bytesInLine
 	
 ############################################
-# G³ówny algorytm:
+# G??wny algorytm:
 # Mamy do dyspozycji WSZYSTKIE rejestry:
 # 
 	lw iXmax, width	# t0 iXmax
@@ -173,55 +173,64 @@ main:
 	sw $t5, pixelHeight
 	
 	li $s6, 0	# actual ireration
-	li $s7, 50 # iterationMax
+	li $s7, 200 # iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 111
 loop1:
 	# Cy = CyMin + iY * PixelHeight;
 	lw $a0, pixelHeight
-	mul $t4, $a0, iY # iY * pH
+	mul Cy, $a0, iY # iY * pH
 	lw $a0, CyMin
-	add $t4, $t4, $a0 # t4 Cy
+	add Cy, Cy, $a0 # t4 Cy
 
 	# if (fabs(Cy) < PixelHeight / 2) Cy = 0.0;
-	srl $a0, $t4, 1 # pH/2
-	abs $a1, $t6	# abs($t6)
-	bge $a1, $a0, loop2 
-	li $t4, 0# Cy = 0.0; 
+	srl $a0, Cy, 1 # pH/2
+	abs $a1, Cy	# abs(Cy)
+	nop
+	bge $a1, $a0, loop2
+	nop
+	li Cy, 0# Cy = 0.0; 
 
 loop2:
 
 	# Cx = CxMin + iX * PixelWidth;
 	lw $a0, pixelWidth
-	mul $t5, $a0, iX # iX * pW
+	mul Cx, $a0, iX # iX * pW
 	lw $a0, CxMin
-	add $t5, $t5, $a0 # t5 Cx
+	add Cx, Cx, $a0 # t5 Cx
 
 	# Zx = 0.0;
-	li $t6, 0
+	li Zx, 0
 	# Zy = 0.0;
-	li $t7, 0
+	li Zy, 0
 	# Zx2 = Zx * Zx;
-	mul $t8, $t6, $t6
+	li Zx2, 0
+########mul $t8, Zx, Zx
 	# Zy2 = Zy * Zy;
-	mul $t9, $t7, $t7
+	li Zy2, 0
+########mul $t9, $t7, $t7
 
 	# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
 	loop3:
+		# b next3
 		addu $a2, Zx2, Zy2 # ER2
-		printInt($a2)
-
-		bge $a2, 262144, next2 #262144 to 4.0 w formacie 16b.16b
-		
+		nop
+		bge $a2, 262144, next3 #262144 to 4.0 w formacie 16b.16b
+		nop
 		# Zy = 2 * Zx * Zy + Cy;
 		mul Zy, Zx, Zy
-		sll Zy, Zy, 17 # 16+1, 16 na konwersje, 1 na 2*x
+		mfhi $a1
+		sra Zy, Zy, 16
+		sll $a1, $a1, 16
+		or Zy, Zy, $a1
+		sll Zy, Zy, 1
+		#sll Zy, Zy, 17 # 16+1, 16 na konwersje, 1 na 2*x
 		add Zy, Zy, Cy
 
 		# Zx = Zx2 - Zy2 + Cx;
-		add Zx, Zx2, Zy2
-		sll Zx, Zx, 16
+		addu Zx, Zx2, Zy2
+		# sll Zx, Zx, 16
 		add Zx, Zx, Cx
 
 
@@ -241,16 +250,43 @@ loop2:
 		sll $a1, $a1, 16
 		or Zy2, Zy2, $a1
 		
+		nop
+		blt $s6, 1, skipPrint
+		nop
+		printInt(iX, " iX\n")
+		printInt(iXmax, " iXmax\n")
+		printInt(iY, " iY\n")
+		printInt(iYmax, " iYmax\n")
+		printInt(Cx, " Cx\n")
+		printInt(Cy, " Cy\n")
+		printInt(Zx, " Zx\n")
+		printInt(Zx2, " Zx2\n")
+		printInt(Zy, " Zy\n")
+		printInt(Zy2, " Zy2\n")
+		printInt($s6, " iteration\n")
+		nop
+		b end
+		nop
+	skipPrint:
+		
+		
+		
 		addiu $s6, $s6, 1
+		nop
 		blt $s6, $s7, loop3
+		nop
+next3:		
+		addiu $s0, $s0, 3
 		
 		# if (Iteration == IterationMax) {
-		bne $s6, $s7, next2
+		nop
+		blt $s6, $s7, next2
+		nop
 		#	// color srodka
-		sb $s1, ($s0)
-		sb $s1, 1($s0)
-		sb $s1, 2($s0)
-		addiu $s0, $s0, 3
+		sb $s1, -1($s0)
+		sb $s1, -2($s0)
+		sb $s1, -3($s0)
+
 		# }
 		# else {
 
@@ -260,13 +296,17 @@ loop2:
 next2:
 	li $s6, 0
 	addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
+	nop
 	blt iX, iXmax, loop2
+	nop
 	# dodanie paddingu
 	addu $s0, $s0, $a3
 next1:
 	li iX, 0
 	addiu iY, iY, 1
+	nop
 	blt iY, iYmax, loop1
+	nop
 
 endLoop1:
 	
