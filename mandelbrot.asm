@@ -223,7 +223,7 @@ loop1:
 			# Zy = 2 * Zx * Zy + Cy;
 			mul Zy, Zx, Zy
 			mfhi $a1
-			sra Zy, Zy, 16
+			srl Zy, Zy, 16
 			sll $a1, $a1, 16
 			or Zy, Zy, $a1
 			sll Zy, Zy, 1	# *2
@@ -236,14 +236,14 @@ loop1:
 			# Zx2 = Zx * Zx;
 			mul Zx2, Zx, Zx
 			mfhi $a1
-			sra Zx2, Zx2, 16
+			srl Zx2, Zx2, 16
 			sll $a1, $a1, 16
 			or Zx2, Zx2, $a1
 		
 			# Zy2 = Zy * Zy;
 			mul Zy2, Zy, Zy
 			mfhi $a1
-			sra Zy2, Zy2, 16
+			srl Zy2, Zy2, 16
 			sll $a1, $a1, 16
 			or Zy2, Zy2, $a1
 		
