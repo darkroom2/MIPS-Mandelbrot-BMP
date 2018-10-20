@@ -44,13 +44,11 @@ header: .space 54
 fileSize: .word 1
 width: .word 1
 height: .word 1
-# pixelCount: .word 1
 pixelArray: .word 1
 outputFileBegin: .word 1
 padding: .word 1
-# bytesInLine: .word 1
-CxMin: .word 1
-CyMin: .word 1
+CxMin: .word -163840 # -2.5 in 16b.16b notation
+CyMin: .word -131072 # -2.0 in 16b.16b notation
 pixelWidth: .word 1
 pixelHeight: .word 1
 inputFile: .asciiz "in.bmp"
@@ -104,9 +102,6 @@ main:
 	lw $t2, header+22 # wysokosc
 	sw $t2, height
 	
-	# mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
-	# sw $t1, pixelCount
-	
 	# majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
 	lw $a0, fileSize # tyle ile in.bmp
@@ -141,10 +136,6 @@ main:
 
 	andi $t1, $t0, 0x3 # sprytne source: http://home.elka.pw.edu.pl/~sniespod/index.php?l=arko
 	sw $t1, padding
-
-	# mulu $t0, $t0, 3 # liczba bajtow w wierszu
-	# addu $t0, $t0, $t1 # + padding, aby uzyskac wielokrotnosc 4 (musi byc wielokrotnosc 4)
-	# sw $t0, bytesInLine
 	
 ############################################
 # Glowny algorytm:
@@ -154,22 +145,11 @@ main:
 	
 	lw iYmax, height # t2 iYmax
 	li iY, 0	# t3 iY
-	
-	# CxMin
-	li $t4, 5	# 000000101
-	sll $t4, $t4, 15 # 10.10000000   2.5
-	neg $t4, $t4	# -2.5
-	sw $t4, CxMin
-	
-	# CyMin
-	li $t4, 2	# 00000010
-	sll $t4, $t4, 16 # 000010.0000   2.0
-	neg $t4, $t4	# -2.0
-	sw $t4, CyMin
 
-	# pixelWidth
-	li $t4, 4
-	sll $t4, $t4, 16
+	# skaluj X i Y pixela na x(-2.5, 1.5) i y(-2.0, 2.0) na planie
+	# li $t4, 4
+	# sll $t4, $t4, 16 # result = 262144
+	li $t4, 262144
 	divu $t5, $t4, $t2 # pixelHeight = 4.0 / iYmax
 	divu $t4, $t4, $t0 # pixelWidth = 4.0 / iXmax
 	sw $t4, pixelWidth # 0,0078125
@@ -252,8 +232,8 @@ loop1:
 			blt $s6, $s7, loop3
 			nop
 	next3:		
-		addiu $s0, $s0, 3
-	
+		addiu $s0, $s0, 3 # przesuwamy pixel nawet jesli nie kolorujemy go
+		 
 		# if (Iteration == IterationMax)
 		nop
 		blt $s6, $s7, next2
@@ -266,7 +246,7 @@ loop1:
 		# else 	
 	next2:
 		li $s6, 0
-		addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
+		addiu iX, iX, 1
 		nop
 		blt iX, iXmax, loop2
 		nop
