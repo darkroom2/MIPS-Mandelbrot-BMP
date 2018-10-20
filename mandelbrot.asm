@@ -194,7 +194,7 @@ loop1:
 	nop
 	bge $a1, $a0, loop2
 	nop
-	li Cy, 0# Cy = 0.0; 
+	li Cy, 0	# Cy = 0.0; 
 
 	loop2:
 
@@ -254,20 +254,16 @@ loop1:
 	next3:		
 		addiu $s0, $s0, 3
 	
-		# if (Iteration == IterationMax) {
+		# if (Iteration == IterationMax)
 		nop
 		blt $s6, $s7, next2
 		nop
-		#	// color srodka
+		# kolorujemy srodek
 		sb $s1, -1($s0)
 		sb $s1, -2($s0)
 		sb $s1, -3($s0)
-
-		# }
-		# else {
-		# 	// color na zewnatrz
-		# }
 		
+		# else 	
 	next2:
 		li $s6, 0
 		addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
