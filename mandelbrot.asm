@@ -38,21 +38,21 @@
 
 	.data
 
-	.align 2
-	.space 2
-header: .space 54
-fileSize: .word 1
-width: .word 1
-height: .word 1
-pixelArray: .word 1
-outputFileBegin: .word 1
-padding: .word 1
-CxMin: .word -163840 # -2.5 in 16b.16b notation
-CyMin: .word -131072 # -2.0 in 16b.16b notation
-pixelWidth: .word 1
-pixelHeight: .word 1
-inputFile: .asciiz "in.bmp"
-outputFile: .asciiz "out.bmp"
+		.align 2	# wyrownanie do 4 bajtow
+		.space 2	# aby wyrownac 54 bajtow
+header:		.space 54	# do 56 ktore jest podzielne przez 4
+fileSize:	.word 1
+width:		.word 1		# word = 4 bajty
+height:		.word 1
+pixelArray:	.word 1
+outputFileBegin:.word 1
+padding:	.word 1
+CxMin:		.word -163840 # -2.5 in 16b.16b notation
+CyMin:		.word -131072 # -2.0 in 16b.16b notation
+pixelWidth:	.word 1
+pixelHeight:	.word 1
+inputFile:	.asciiz "in.bmp"
+outputFile:	.asciiz "out.bmp"
 
 	.text
 
@@ -147,19 +147,20 @@ main:
 	li iY, 0	# t3 iY
 
 	# skaluj X i Y pixela na x(-2.5, 1.5) i y(-2.0, 2.0) na planie
+	# pixelWidth = (CxMax - CxMin) / iXmax;
 	# li $t4, 4
 	# sll $t4, $t4, 16 # result = 262144
-	li $t4, 262144
+	li $t4, 262144	# 4.0 in 16b.16b
 	divu $t5, $t4, $t2 # pixelHeight = 4.0 / iYmax
 	divu $t4, $t4, $t0 # pixelWidth = 4.0 / iXmax
-	sw $t4, pixelWidth # 0,0078125
+	sw $t4, pixelWidth
 	sw $t5, pixelHeight
 	
 	li $s6, 0	# actual ireration
-	li $s7, 50 # iterationMax
+	li $s7, 50	# iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
-	li $s1, 111
+	li $s1, 255	# kolor
 loop1:
 	# Cy = CyMin + iY * PixelHeight;
 	lw $a0, pixelHeight
