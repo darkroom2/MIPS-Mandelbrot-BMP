@@ -1,4 +1,4 @@
-﻿# https://docs.microsoft.com/en-us/windows/desktop/gdi/bitmap-storage BMP
+# https://docs.microsoft.com/en-us/windows/desktop/gdi/bitmap-storage BMP
 # https://docs.microsoft.com/en-us/windows/desktop/winprog/windows-data-types wielkosci WORD itp.
 
 # DWORD 32bit, WORD 16bit, LONG 32bit
@@ -24,19 +24,22 @@
 # 46 DWORD biClrUsed;	4bajty,
 # 52 DWORD biClrImportant;	4bajty,
 # }
-.eqv iXmax $t0
-.eqv iX $t1
-.eqv iYmax $t2
-.eqv iY $t3
-.eqv Cy $t4
-.eqv Cx $t5
-.eqv Zx $t6
-.eqv Zy $t7
-.eqv Zx2 $t8
-.eqv Zy2 $t9
-.data
-.align 2
-.space 2
+
+.eqv	iXmax	$t0
+.eqv	iX	$t1
+.eqv	iYmax	$t2
+.eqv	iY	$t3
+.eqv	Cy	$t4
+.eqv	Cx	$t5
+.eqv	Zx	$t6
+.eqv	Zy	$t7
+.eqv	Zx2	$t8
+.eqv	Zy2	$t9
+
+	.data
+
+	.align 2
+	.space 2
 header: .space 54
 fileSize: .word 1
 width: .word 1
@@ -52,7 +55,8 @@ pixelWidth: .word 1
 pixelHeight: .word 1
 inputFile: .asciiz "in.bmp"
 outputFile: .asciiz "out.bmp"
-.text
+
+	.text
 
 .macro printInt(%x, %str)
 	li $v0, 1
@@ -69,7 +73,7 @@ str:	.asciiz %str
 	syscall
 .end_macro
 
-.globl main
+	.globl main
 
 main:
 	li $v0, 13	# otwarcie pliku
@@ -79,7 +83,7 @@ main:
 	syscall
 	move $s6, $v0	# deskryptor w s6
 	
-	#pobieramy header aby go pozniej zapisac do pliku out.bmp:
+	# pobieramy header aby go pozniej zapisac do pliku out.bmp:
 	li $v0, 14	# czytanie z pliku
 	move $a0, $s6	# ktory "jest tu" (deskryptor)
 	la $a1, header	# tu zapisujemy header
@@ -90,7 +94,7 @@ main:
 	move $a0, $s6	# zamykamy go, aby pozniej przy otwarciu, wskaznik pliku byl na jego poczatku
 	syscall
 	
-	#porzadkujemy przydatne info (patrz struct na gorze)
+	# porzadkujemy przydatne info (patrz struct na gorze)
 	lw $t0, header+2 # ladujemy 4bajty (mips word 32bit) rozmiaru (DWORD bfSize)
 	sw $t0, fileSize # i zapisujemy do fileSize
 
@@ -103,13 +107,13 @@ main:
 	# mul $t1, $t1, $t2 # liczymy ilosc pixeli na obrazku
 	# sw $t1, pixelCount
 	
-	#majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
+	# majac adres headera i adres poczateku pixeli mozemy przepisac te rzeczy do nowego pliku
 	li $v0, 9	# alokujemy pamiec na out.bmp
 	lw $a0, fileSize # tyle ile in.bmp
 	syscall
 	sw $v0, outputFileBegin # zapisujemy adres poczatku zaalokowanej pamieci, aby pozniej przepisac ja do out.bmp
 	
-	#otwieramy plik aby przepisac jego cala zawartosc do zaalokowanej pamieci
+	# otwieramy plik aby przepisac jego cala zawartosc do zaalokowanej pamieci
 	li $v0, 13
 	la $a0, inputFile
 	li $a1, 0
@@ -127,12 +131,12 @@ main:
 	move $a0, $s6
 	syscall
 	
-	#obliczamy poczatek tablicy pixeli
+	# obliczamy poczatek tablicy pixeli
 	lw $t0, outputFileBegin
 	addu $t0, $t0, 54
 	sw $t0, pixelArray
 	
-	#padding, mamy 4bajty na pixel, wiersz musi sie konczyc na wyrownanym do 4 adresie
+	# padding, mamy 4bajty na pixel, wiersz musi sie konczyc na wyrownanym do 4 adresie
 	lw $t0, width
 
 	andi $t1, $t0, 0x3 # sprytne source: http://home.elka.pw.edu.pl/~sniespod/index.php?l=arko
@@ -144,7 +148,6 @@ main:
 	
 ############################################
 # Glowny algorytm:
-# Mamy do dyspozycji WSZYSTKIE rejestry:
 # 
 	lw iXmax, width	# t0 iXmax
 	li iX, 0	# t1 iX
@@ -173,7 +176,7 @@ main:
 	sw $t5, pixelHeight
 	
 	li $s6, 0	# actual ireration
-	li $s7, 200 # iterationMax
+	li $s7, 50 # iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 111
@@ -193,74 +196,64 @@ loop1:
 	nop
 	li Cy, 0# Cy = 0.0; 
 
-loop2:
+	loop2:
 
-	# Cx = CxMin + iX * PixelWidth;
-	lw $a0, pixelWidth
-	mulu Cx, $a0, iX # iX * pW
-	lw $a0, CxMin
-	add Cx, Cx, $a0 # t5 Cx
+		# Cx = CxMin + iX * PixelWidth;
+		lw $a0, pixelWidth
+		mulu Cx, $a0, iX # iX * pW
+		lw $a0, CxMin
+		add Cx, Cx, $a0 # t5 Cx
 
-	# Zx = 0.0;
-	li Zx, 0
-	# Zy = 0.0;
-	li Zy, 0
-	# Zx2 = Zx * Zx;
-	#li Zx2, 0
-#########
-	mulu Zx2, Zx, Zx
-	# Zy2 = Zy * Zy;
-	#li Zy2, 0
-#########
-	mulu Zy2, Zy, Zy
-
-	# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
-	loop3:
-		#b next3
-		addu $a2, Zx2, Zy2 # ER2
-		nop
-		bge $a2, 262144, next3 #262144 to 4.0 w formacie 16b.16b
-		nop
-		
-		# lw Zy, CyMin
-		# lw Zx, CxMin
-		
-		# Zy = 2 * Zx * Zy + Cy;
-		mul Zy, Zx, Zy
-		mfhi $a1
-		sra Zy, Zy, 16
-		sll $a1, $a1, 16
-		or Zy, Zy, $a1
-		sll Zy, Zy, 1	# *2
-		add Zy, Zy, Cy
-
-# dotad jest git
-
-		# Zx = Zx2 - Zy2 + Cx;
-		sub Zx, Zx2, Zy2
-		add Zx, Zx, Cx
-
+		# Zx = 0.0;
+		li Zx, 0
+		# Zy = 0.0;
+		li Zy, 0
 		# Zx2 = Zx * Zx;
-		mul Zx2, Zx, Zx
-		mfhi $a1
-		sra Zx2, Zx2, 16
-		sll $a1, $a1, 16
-		or Zx2, Zx2, $a1
-		
+		mulu Zx2, Zx, Zx
 		# Zy2 = Zy * Zy;
-		mul Zy2, Zy, Zy
-		mfhi $a1
-		sra Zy2, Zy2, 16
-		sll $a1, $a1, 16
-		or Zy2, Zy2, $a1
+		mulu Zy2, Zy, Zy
+
+		# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
+		loop3:
+			addu $a2, Zx2, Zy2 # ER2
+			nop
+			bge $a2, 262144, next3 #262144 to 4.0 w formacie 16b.16b
+			nop
+	
+			# Zy = 2 * Zx * Zy + Cy;
+			mul Zy, Zx, Zy
+			mfhi $a1
+			sra Zy, Zy, 16
+			sll $a1, $a1, 16
+			or Zy, Zy, $a1
+			sll Zy, Zy, 1	# *2
+			add Zy, Zy, Cy
+			
+			# Zx = Zx2 - Zy2 + Cx;
+			sub Zx, Zx2, Zy2
+			add Zx, Zx, Cx
+			
+			# Zx2 = Zx * Zx;
+			mul Zx2, Zx, Zx
+			mfhi $a1
+			sra Zx2, Zx2, 16
+			sll $a1, $a1, 16
+			or Zx2, Zx2, $a1
 		
-		addiu $s6, $s6, 1	# increment iterator
-		nop
-		blt $s6, $s7, loop3
-		nop
-next3:		
+			# Zy2 = Zy * Zy;
+			mul Zy2, Zy, Zy
+			mfhi $a1
+			sra Zy2, Zy2, 16
+			sll $a1, $a1, 16
+			or Zy2, Zy2, $a1
+		
+			addiu $s6, $s6, 1	# increment iterator
+			nop
+			blt $s6, $s7, loop3
+			nop
+	next3:		
 		addiu $s0, $s0, 3
-		
+	
 		# if (Iteration == IterationMax) {
 		nop
 		blt $s6, $s7, next2
@@ -272,38 +265,27 @@ next3:
 
 		# }
 		# else {
-
 		# 	// color na zewnatrz
 		# }
 		
-next2:
-	li $s6, 0
-	addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
-	nop
-	blt iX, iXmax, loop2
-	nop
-	# dodanie paddingu
-	addu $s0, $s0, $a3
+	next2:
+		li $s6, 0
+		addiu iX, iX, 1 # sprawdzic jak dodawac jeden do fixed pointa
+		nop
+		blt iX, iXmax, loop2
+		nop
+		# dodanie paddingu
+		addu $s0, $s0, $a3
 next1:
 	li iX, 0
 	addiu iY, iY, 1
 	nop
 	blt iY, iYmax, loop1
 	nop
-
-endLoop1:
-	
-	# do stuff
-	#sb $s1, ($s0)
-	#sb $s1, 1($s0)
-	#sb $s1, 2($s0)
-	#addiu $s0, $s0, 3
-
 # 
 ############################### Koniec
 # 
-
-	#zapisujemy zaalokowany wczesniej plik
+	# zapisujemy zaalokowany wczesniej plik
 	li $v0, 13	# otwieramy plik
 	la $a0, outputFile # output.bmp
 	li $a1, 1
@@ -311,14 +293,14 @@ endLoop1:
 	syscall
 	move $s6, $v0	# deskryptor w s6
 	
-	#zapisz do plik
+	# zapisz do plik
 	li $v0, 15
  	move $a0, $s6      # file descriptor 
  	lw $a1, outputFileBegin
  	lw $a2, fileSize
  	syscall
  	
- 	#zamkniecie tego pliku
+ 	# zamkniecie tego pliku
 	li $v0, 16	# ostatecznie zamykamy plik out.bmp
 	move $a0, $s6
 	syscall
