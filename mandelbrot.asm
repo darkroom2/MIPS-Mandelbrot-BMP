@@ -180,12 +180,14 @@ main:
 	sll $v0, $v0, 15 # konwersja i podzial na 2
 	move $t5, $v0
 	
+	printStr("\nCzekaj...\n")
+	
 	subu $t4, $t5, $t4 # CyMax - CyMin
 	divu $t4, $t4, iYmax
 	sw $t4, pixelHeight # pHeight = CyMax - CxMin / iYmax
 	
 	li $s6, 0	# current ireration
-	li $s7, 10	# iterationMax
+	li $s7, 30	# iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 255	# kolor
