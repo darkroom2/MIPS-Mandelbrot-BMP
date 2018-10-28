@@ -51,6 +51,7 @@ CxMin:		.word -163840 # -2.5 in 16b.16b notation
 CyMin:		.word -131072 # -2.0 in 16b.16b notation
 pixelWidth:	.word 1
 pixelHeight:	.word 1
+
 inputFile:	.asciiz "in.bmp"
 outputFile:	.asciiz "out.bmp"
 
@@ -145,19 +146,46 @@ main:
 	
 	lw iYmax, height # t2 iYmax
 	li iY, 0	# t3 iY
-
-	# skaluj X i Y pixela na x(-2.5, 1.5) i y(-2.0, 2.0) na planie
-	# pixelWidth = (CxMax - CxMin) / iXmax;
-	# li $t4, 4
-	# sll $t4, $t4, 16 # result = 262144
-	li $t4, 262144	# 4.0 in 16b.16b
-	divu $t5, $t4, $t2 # pixelHeight = 4.0 / iYmax
-	divu $t4, $t4, $t0 # pixelWidth = 4.0 / iXmax
-	sw $t4, pixelWidth
-	sw $t5, pixelHeight
 	
-	li $s6, 0	# actual ireration
-	li $s7, 50	# iterationMax
+	printStr("Program rysujacy zbior Mandelbrota.\nPodaj przedzialy ukladu wspolrzednych rzeczywistych (podwojone, np. -3 -> -1.5, by uzyskac dokladnosc do 0.5).\nCxMin: ")
+	
+	li $v0, 5	# laduj CxMin
+	syscall
+	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sw $v0, CxMin
+	
+	move $t4, $v0 # t4 - CxMin
+
+	printStr("CxMax: ")
+	li $v0, 5	# laduj CxMax
+	syscall
+	sll $v0, $v0, 15 # konwersja i podzial na 2
+	move $t5, $v0
+	
+	subu $t4, $t5, $t4 # CxMax - CxMin
+	divu $t4, $t4, iXmax
+	sw $t4, pixelWidth # pWidth = CxMax - CxMin / iXmax
+	
+	printStr("CyMin: ")
+	li $v0, 5	# laduj CyMin
+	syscall
+	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sw $v0, CyMin
+	
+	move $t4, $v0 # t4 - CyMin
+
+	printStr("CyMax: ")
+	li $v0, 5	# laduj CyMax
+	syscall
+	sll $v0, $v0, 15 # konwersja i podzial na 2
+	move $t5, $v0
+	
+	subu $t4, $t5, $t4 # CyMax - CyMin
+	divu $t4, $t4, iYmax
+	sw $t4, pixelHeight # pHeight = CyMax - CxMin / iYmax
+	
+	li $s6, 0	# current ireration
+	li $s7, 10	# iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 255	# kolor
