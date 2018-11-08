@@ -47,8 +47,8 @@ height:		.word 1
 pixelArray:	.word 1
 outputFileBegin:.word 1
 padding:	.word 1
-CxMin:		.word -163840 # -2.5 in 16b.16b notation
-CyMin:		.word -131072 # -2.0 in 16b.16b notation
+CxMin:		.word 1
+CyMin:		.word 1
 pixelWidth:	.word 1
 pixelHeight:	.word 1
 
@@ -63,6 +63,7 @@ outputFile:	.asciiz "out.bmp"
 	syscall
 	printStr(%str)
 .end_macro
+
 .macro printStr (%str)
 	.data
 str:	.asciiz %str
@@ -151,7 +152,7 @@ main:
 	
 	li $v0, 5	# laduj CxMin
 	syscall
-	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sll $v0, $v0, 24 # konwersja i podzial na 2
 	sw $v0, CxMin
 	
 	move $t4, $v0 # t4 - CxMin
@@ -159,17 +160,17 @@ main:
 	printStr("CxMax: ")
 	li $v0, 5	# laduj CxMax
 	syscall
-	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sll $v0, $v0, 24 # konwersja i podzial na 2
 	move $t5, $v0
 	
-	subu $t4, $t5, $t4 # CxMax - CxMin
-	divu $t4, $t4, iXmax
+	sub $t4, $t5, $t4 # CxMax - CxMin
+	div $t4, $t4, iXmax
 	sw $t4, pixelWidth # pWidth = CxMax - CxMin / iXmax
 	
 	printStr("CyMin: ")
 	li $v0, 5	# laduj CyMin
 	syscall
-	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sll $v0, $v0, 24 # konwersja i podzial na 2
 	sw $v0, CyMin
 	
 	move $t4, $v0 # t4 - CyMin
@@ -177,7 +178,7 @@ main:
 	printStr("CyMax: ")
 	li $v0, 5	# laduj CyMax
 	syscall
-	sll $v0, $v0, 15 # konwersja i podzial na 2
+	sll $v0, $v0, 24 # konwersja i podzial na 2
 	move $t5, $v0
 	
 	printStr("\nCzekaj...\n")
@@ -187,7 +188,7 @@ main:
 	sw $t4, pixelHeight # pHeight = CyMax - CxMin / iYmax
 	
 	li $s6, 0	# current ireration
-	li $s7, 30	# iterationMax
+	li $s7, 50	# iterationMax
 	lw $a3, padding
 	lw $s0, pixelArray
 	li $s1, 255	# kolor
@@ -196,7 +197,7 @@ loop1:
 	lw $a0, pixelHeight
 	mulu Cy, $a0, iY # iY * pH
 	lw $a0, CyMin
-	add Cy, Cy, $a0 # t4 Cy
+	addu Cy, Cy, $a0 # t4 Cy
 
 	# if (fabs(Cy) < PixelHeight / 2) Cy = 0.0;
 	lw $a0, pixelHeight
@@ -213,7 +214,7 @@ loop1:
 		lw $a0, pixelWidth
 		mulu Cx, $a0, iX # iX * pW
 		lw $a0, CxMin
-		add Cx, Cx, $a0 # t5 Cx
+		addu Cx, Cx, $a0 # t5 Cx
 
 		# Zx = 0.0;
 		li Zx, 0
@@ -227,35 +228,38 @@ loop1:
 		# for (Iteration = 0; Iteration < IterationMax && ((Zx2 + Zy2) < ER2); Iteration++) {
 		loop3:
 			addu $a2, Zx2, Zy2 # ER2
-			nop
-			bge $a2, 262144, next3 #262144 to 4.0 w formacie 16b.16b
+			bge $a2, 134217728, next3 #134217728 to 4.0 w formacie 7b.25b
 			nop
 	
 			# Zy = 2 * Zx * Zy + Cy;
-			mul Zy, Zx, Zy
-			mfhi $a1
-			srl Zy, Zy, 16
-			sll $a1, $a1, 16
+			mult Zx, Zy
+			mfhi Zy
+			sll Zy, Zy, 7
+			mflo $a1
+			srl $a1, $a1, 25
 			or Zy, Zy, $a1
-			sll Zy, Zy, 1	# *2
-			add Zy, Zy, Cy
 			
+			sll Zy, Zy, 1	# *2
+			addu Zy, Zy, Cy
+		
 			# Zx = Zx2 - Zy2 + Cx;
-			sub Zx, Zx2, Zy2
-			add Zx, Zx, Cx
+			subu Zx, Zx2, Zy2
+			addu Zx, Zx, Cx
 			
 			# Zx2 = Zx * Zx;
-			mul Zx2, Zx, Zx
-			mfhi $a1
-			srl Zx2, Zx2, 16
-			sll $a1, $a1, 16
+			mult Zx, Zx
+			mfhi Zx2
+			sll Zx2, Zx2, 7
+			mflo $a1
+			srl $a1, $a1, 25
 			or Zx2, Zx2, $a1
 		
 			# Zy2 = Zy * Zy;
-			mul Zy2, Zy, Zy
-			mfhi $a1
-			srl Zy2, Zy2, 16
-			sll $a1, $a1, 16
+			mult Zy, Zy
+			mfhi Zy2
+			sll Zy2, Zy2, 7
+			mflo $a1
+			srl $a1, $a1, 25
 			or Zy2, Zy2, $a1
 		
 			addiu $s6, $s6, 1	# increment iterator
