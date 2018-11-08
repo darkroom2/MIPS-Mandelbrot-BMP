@@ -163,8 +163,8 @@ main:
 	sll $v0, $v0, 24 # konwersja i podzial na 2
 	move $t5, $v0
 	
-	sub $t4, $t5, $t4 # CxMax - CxMin
-	div $t4, $t4, iXmax
+	subu $t4, $t5, $t4 # CxMax - CxMin
+	divu $t4, $t4, iXmax
 	sw $t4, pixelWidth # pWidth = CxMax - CxMin / iXmax
 	
 	printStr("CyMin: ")
